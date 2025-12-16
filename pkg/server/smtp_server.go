@@ -60,6 +60,7 @@ func (h *SMTPServer) ListenAndServe(tlsConfig *tls.Config, smtpAlive, smtpsAlive
 		}
 		srv := &smtpd.Server{Addr: fmt.Sprintf("%s:%d", h.options.ListenIP, h.options.SmtpAutoTLSPort), Handler: h.defaultHandler, Appname: "interactsh", Hostname: h.options.Domains[0]}
 		srv.TLSConfig = tlsConfig
+		srv.TLSListener = true
 
 		smtpsAlive <- true
 		err := srv.ListenAndServe()
