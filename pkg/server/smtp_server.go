@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"git.mills.io/prologic/smtpd"
+	"github.com/AkewakBiru/smtpd"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/projectdiscovery/gologger"
 	stringsutil "github.com/projectdiscovery/utils/strings"
