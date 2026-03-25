@@ -1,9 +1,9 @@
 module github.com/AkewakBiru/interactsh
 
-go 1.21
+go 1.25.1
 
 require (
-	git.mills.io/prologic/smtpd v0.0.0-20210710122116-a525b76c287a
+	github.com/AkewakBiru/smtpd v0.0.0-20251216134214-ff79614ac419
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/caddyserver/certmagic v0.19.2
 	github.com/docker/go-units v0.5.0
