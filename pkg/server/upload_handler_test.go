@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/AkewakBiru/interactsh/pkg/settings"
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	"github.com/google/uuid"
-	"github.com/projectdiscovery/interactsh/pkg/settings"
-	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )

@@ -24,8 +24,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"errors"
-
 	"github.com/AkewakBiru/interactsh/pkg/options"
 	"github.com/AkewakBiru/interactsh/pkg/server"
 	"github.com/AkewakBiru/interactsh/pkg/settings"

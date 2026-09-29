@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	"github.com/stretchr/testify/require"
 )
 

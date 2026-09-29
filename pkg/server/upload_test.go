@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/projectdiscovery/interactsh/pkg/settings"
+	"github.com/AkewakBiru/interactsh/pkg/settings"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )

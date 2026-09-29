@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	"github.com/miekg/dns"
-	"github.com/projectdiscovery/interactsh/pkg/storage"
 	"github.com/stretchr/testify/require"
 )
 

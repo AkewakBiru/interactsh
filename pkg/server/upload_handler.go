@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	"github.com/projectdiscovery/gologger"
-	"github.com/projectdiscovery/interactsh/pkg/storage"
 )
 
 // Capabilities advertises optional server features to clients at registration.

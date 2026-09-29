@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/projectdiscovery/interactsh/pkg/storage"
+	"github.com/AkewakBiru/interactsh/pkg/storage"
 	stringsutil "github.com/projectdiscovery/utils/strings"
 	"github.com/stretchr/testify/require"
 )

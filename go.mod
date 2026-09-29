@@ -9,6 +9,7 @@ require (
 	github.com/docker/go-units v0.5.0
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
 	github.com/AkewakBiru/smtpd v0.0.0-20251216134214-ff79614ac419
+	github.com/emersion/go-smtp v0.24.0
 	github.com/goburrow/cache v0.1.4
 	github.com/google/uuid v1.6.0
 	github.com/json-iterator/go v1.1.12

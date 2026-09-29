@@ -18,7 +18,6 @@ import (
 	"github.com/AkewakBiru/interactsh/pkg/options"
 	"github.com/AkewakBiru/interactsh/pkg/server"
 	"github.com/AkewakBiru/interactsh/pkg/settings"
-	jsoniter "github.com/json-iterator/go"
 	asnmap "github.com/projectdiscovery/asnmap/libs"
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/gologger"

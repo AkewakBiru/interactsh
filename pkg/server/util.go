@@ -54,10 +54,6 @@ func (options *Options) isCorrelationID(s string) bool {
 	return inAlphabet(zbase32AlphabetTable, s[options.CorrelationIdLength:])
 }
 
-func formatAddress(host string, port int) string {
-	return net.JoinHostPort(host, strconv.Itoa(port))
-}
-
 // storeInteraction marshals interaction and persists it under correlationID via Storage.AddInteraction.
 // Each protocol handler builds its own protocol-specific Interaction and delegates the marshal/log/store
 // step here so every match is stored independently (see issue #1362).
