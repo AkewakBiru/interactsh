@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/AkewakBiru/interactsh/pkg/server/acme"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/miekg/dns"
 	"github.com/pkg/errors"
 	"github.com/projectdiscovery/gologger"
@@ -301,8 +300,6 @@ func toQType(ttype uint16) (rtype string) {
 
 // handleInteraction handles an interaction for the DNS server
 func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dns.Msg, m *dns.Msg) {
-	var uniqueID, fullID string
-
 	requestMsg := r.String()
 	responseMsg := m.String()
 
@@ -317,10 +314,9 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 		}
 	}
 
-	// if root-tld is enabled stores any interaction towards the main domain
+	host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
+
 	if h.options.RootTLD && foundDomain != "" {
-		correlationID := foundDomain
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
 		interaction := &Interaction{
 			Protocol:      "dns",
 			UniqueID:      domain,
@@ -331,55 +327,18 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
 		}
-
-		if nil != h.options.OnResult {
+		if h.options.OnResult != nil {
 			h.options.OnResult(interaction)
 		}
-
-		data, err := jsoniter.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode root tld dns interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("Root TLD DNS Interaction: \n%s\n", string(data))
-			if err := h.options.Storage.AddInteractionWithId(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
-			}
-		}
+		h.options.storeRootTLDInteraction(interaction, foundDomain)
 	}
 
-	if foundDomain != "" {
-		if h.options.ScanEverywhere {
-			chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
-			for _, chunk := range chunks {
-				for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
-					normalizedPart := strings.ToLower(part)
-					if h.options.isCorrelationID(normalizedPart) {
-						uniqueID = normalizedPart
-						fullID = part
-					}
-				}
-			}
-		} else {
-			parts := strings.Split(domain, ".")
-			for i, part := range parts {
-				for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
-					normalizedPartChunk := strings.ToLower(partChunk)
-					if h.options.isCorrelationID(normalizedPartChunk) {
-						fullID = part
-						if i+1 <= len(parts) {
-							fullID = strings.Join(parts[:i+1], ".")
-						}
-						uniqueID = normalizedPartChunk
-					}
-				}
-			}
-		}
+	if foundDomain == "" {
+		return
 	}
 
-	if uniqueID != "" {
-		correlationID := uniqueID[:h.options.CorrelationIdLength]
-		host, _, _ := net.SplitHostPort(w.RemoteAddr().String())
-		interaction := &Interaction{
+	storeMatch := func(uniqueID, fullID string) {
+		h.options.storeInteraction(&Interaction{
 			Protocol:      "dns",
 			UniqueID:      uniqueID,
 			FullId:        fullID,
@@ -388,17 +347,108 @@ func (h *DNSServer) handleInteraction(domain string, w dns.ResponseWriter, r *dn
 			RawResponse:   responseMsg,
 			RemoteAddress: host,
 			Timestamp:     time.Now(),
-		}
-		data, err := jsoniter.Marshal(interaction)
-		if err != nil {
-			gologger.Warning().Msgf("Could not encode dns interaction: %s\n", err)
-		} else {
-			gologger.Debug().Msgf("DNS Interaction: \n%s\n", string(data))
-			if err := h.options.Storage.AddInteraction(correlationID, data); err != nil {
-				gologger.Warning().Msgf("Could not store dns interaction: %s\n", err)
+		}, uniqueID[:h.options.CorrelationIdLength])
+	}
+
+	if h.options.ScanEverywhere {
+		chunks := stringsutil.SplitAny(requestMsg, ".\n\t\"'")
+		for _, chunk := range chunks {
+			for part := range stringsutil.SlideWithLength(chunk, h.options.GetIdLength()) {
+				normalizedPart := strings.ToLower(part)
+				if h.options.isCorrelationID(normalizedPart) {
+					storeMatch(normalizedPart, part)
+				}
 			}
 		}
+		return
 	}
+
+	parts := strings.Split(domain, ".")
+	for i, part := range parts {
+		for partChunk := range stringsutil.SlideWithLength(part, h.options.GetIdLength()) {
+			normalizedPartChunk := strings.ToLower(partChunk)
+			if !h.options.isCorrelationID(normalizedPartChunk) {
+				continue
+			}
+			fullID := part
+			if i+1 <= len(parts) {
+				fullID = strings.Join(parts[:i+1], ".")
+			}
+			storeMatch(normalizedPartChunk, fullID)
+		}
+	}
+}
+
+// CustomRecordConfig represents a custom DNS record configuration
+type CustomRecordConfig struct {
+	Type     string `yaml:"type"`
+	Value    string `yaml:"value"`
+	TTL      uint32 `yaml:"ttl,omitempty"`
+	Priority uint16 `yaml:"priority,omitempty"` // for MX records
+}
+
+// DNSRecordsConfig represents the structured DNS records configuration (YAML format)
+type DNSRecordsConfig map[string][]CustomRecordConfig
+
+// appendAnswerRecord appends an A/AAAA record to the DNS message based on the
+// provided IP address.
+func (h *DNSServer) appendAnswerRecord(zone string, ip net.IP, m *dns.Msg) bool {
+	if ip == nil {
+		return false
+	}
+
+	if ipv4 := ip.To4(); ipv4 != nil {
+		m.Answer = append(m.Answer, &dns.A{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipv4})
+		return true
+	}
+
+	if ipv6 := ip.To16(); ipv6 != nil {
+		m.Answer = append(m.Answer, &dns.AAAA{Hdr: dns.RR_Header{Name: zone, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ipv6})
+		return true
+	}
+
+	return false
+}
+
+// appendGlueRecords appends A/AAAA glue records for the given nameserver domain.
+func (h *DNSServer) appendGlueRecords(nsDomain string, m *dns.Msg) {
+	for _, ip := range uniqueIPs(h.ipAddresses) {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			m.Extra = append(m.Extra, &dns.A{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: h.timeToLive}, A: ipv4})
+			continue
+		}
+
+		if ipv6 := ip.To16(); ipv6 != nil {
+			m.Extra = append(m.Extra, &dns.AAAA{Hdr: dns.RR_Header{Name: nsDomain, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: h.timeToLive}, AAAA: ipv6})
+		}
+	}
+}
+
+// uniqueIPs deduplicates a slice of [net.IP] objects and returns a new slice
+// containing only unique IP addresses.
+func uniqueIPs(ips []net.IP) []net.IP {
+	if len(ips) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(ips))
+
+	var result []net.IP
+	for _, ip := range ips {
+		if ip == nil {
+			continue
+		}
+
+		key := ip.String()
+		if _, ok := seen[key]; ok {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		result = append(result, ip)
+	}
+
+	return result
 }
 
 // CustomRecordConfig represents a custom DNS record configuration
